@@ -17,6 +17,7 @@ package com.examples.pubsub.streaming;
 // [START pubsub_to_gcs]
 
 import java.io.IOException;
+import java.util.Arrays;
 import org.apache.beam.examples.common.WriteOneFilePerWindow;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -29,6 +30,13 @@ import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.joda.time.Duration;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+
 
 public class PubSubToGcs {
   /*
@@ -70,9 +78,15 @@ public class PubSubToGcs {
         // 1) Read string messages from a Pub/Sub topic.
         .apply("Read PubSub Messages", PubsubIO.readStrings().fromTopic(options.getInputTopic()))
         // 2) Group the messages into fixed-sized minute intervals.
-        .apply(Window.into(FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))))
+        //.apply(Window.into(FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))))
         // 3) Write one file to GCS for every window of messages.
-        .apply("Write Files to GCS", new WriteOneFilePerWindow(options.getOutput(), numShards));
+        .apply("Write Files to BigQuery",  BigQueryIO.writeTableRows()
+				.to(options.getOutput())
+                                .withSchema(new TableSchema().setFields(Arrays.asList(
+				   new TableFieldSchema().setName("message").setType("STRING"))))
+        			.withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+        			.withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER));
+        //.apply("Write Files to BigQuery", new BigQueryIO.(options.getOutput(), "message:STRING"));
 
     // Execute the pipeline and wait until it finishes running.
     pipeline.run().waitUntilFinish();

@@ -184,5 +184,11 @@
       <artifactId>beam-sdks-java-extensions-sql</artifactId>
       <version>${beam.version}</version>
     </dependency>
+    <!-- Beam examples for GCS writer -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-maven-archetypes-examples</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
   </dependencies>
 </project>

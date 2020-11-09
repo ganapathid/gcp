@@ -1,5 +1,5 @@
 {
-  "name": "Streaming Beam SQL",
+  "name": "Streaming Beam Sql",
   "description": "An Apache Beam streaming pipeline that reads JSON encoded messages from Pub/Sub, uses Beam SQL to transform the message data, and writes the results to a BigQuery",
   "parameters": [
     {
@@ -18,6 +18,15 @@
       "regexes": [
         "[^:]+:[^.]+[.].+"
       ]
-    }
+    },
+            {
+                "helpText": "GCS path to write to, in the form 'gs://path'.",
+                "isOptional": true,
+                "label": "GCS output path",
+                "name": "outputPath",
+                "regexes": [
+                    "[^:]+:[^:]+"
+                ]
+            }
   ]
 }

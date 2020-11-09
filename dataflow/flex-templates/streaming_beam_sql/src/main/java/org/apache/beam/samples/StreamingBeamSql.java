@@ -14,6 +14,8 @@
 
 package org.apache.beam.samples;
 
+//import org.apache.beam.sdk.values;
+import org.apache.beam.examples.common.WriteOneFilePerWindow;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -68,6 +70,12 @@ public class StreamingBeamSql {
     String getOutputTable();
 
     void setOutputTable(String value);
+    @Description("GCS path to write to, in the form "
+        + "'gs:path' .")
+    @Default.String("gs://my_deva_bucket/output")
+    String getOutputPath();
+
+    void setOutputPath(String value);
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -93,7 +101,8 @@ public class StreamingBeamSql {
         .build();
 
     var pipeline = Pipeline.create(options);
-    pipeline
+    int numShards = 1;
+    var pipeline2 = pipeline
         // Read, parse, and validate messages from Pub/Sub.
         .apply("Read messages from Pub/Sub", PubsubIO.readStrings().fromSubscription(subscription))
         .apply("Parse JSON into SQL rows", MapElements.into(TypeDescriptor.of(Row.class))
@@ -114,10 +123,15 @@ public class StreamingBeamSql {
         // Add timestamps and bundle elements into windows.
         .apply("Add processing time", WithTimestamps
             .of((row) -> row.getDateTime("processing_time").toInstant()))
-        .apply("Fixed-size windows", Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+        .apply("Fixed-size windows", Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+   // Get only one field
+        //.apply("Get URL",MapElements.into(TypeDescriptors.strings())
+        pipeline2.apply("Get URL",MapElements.into(TypeDescriptor.of(String.class)).via((Row row) -> row.getString("url")))
+// Save to GCS
+        .apply("Write Files to GCS", new WriteOneFilePerWindow(options.getOutputPath(), numShards));
 
         // Apply a SQL query for every window of elements.
-        .apply("Run Beam SQL query", SqlTransform.query(
+        pipeline2.apply("Run Beam SQL query", SqlTransform.query(
             "SELECT "
                 + "  url, "
                 + "  COUNT(page_score) AS num_reviews, "
@@ -150,7 +164,8 @@ public class StreamingBeamSql {
                 new TableFieldSchema().setName("score").setType("FLOAT64"),
                 new TableFieldSchema().setName("first_date").setType("TIMESTAMP"),
                 new TableFieldSchema().setName("last_date").setType("TIMESTAMP"))))
-            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            //.withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND));
 
     // For a Dataflow Flex Template, do NOT waitUntilFinish().
